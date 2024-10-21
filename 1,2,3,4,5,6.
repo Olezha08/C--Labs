@@ -1,0 +1,668 @@
+/* number 1
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using System.Net.Http.Headers;
+
+public class Tokenizer : IEnumerable<string>, IDisposable
+{
+    private HashSet<char> _delimiters;
+    private StreamReader _reader;
+    private bool _disposed = false;
+    public string _inputFile;
+
+ 
+
+    public Tokenizer(HashSet<char> delimiters, string inputFile)
+    {
+        _delimiters = delimiters ?? throw new ArgumentNullException(nameof(delimiters));
+        _inputFile = inputFile ?? throw new ArgumentNullException(nameof(inputFile));
+        _reader = new StreamReader(_inputFile);
+    }
+
+    public IEnumerator<string> GetEnumerator()
+    {
+        string line;
+        while ((line = _reader.ReadLine()) != null)
+        {
+            foreach (var token in TokenizeLine(line))
+            {
+                yield return token;
+            }
+        }
+    }
+
+    private IEnumerable<string> TokenizeLine(string line)
+    {
+        var token = string.Empty;
+
+        foreach (var ch in line)
+        {
+            if (_delimiters.Contains(ch))
+            {
+                if (!string.IsNullOrEmpty(token))
+                {
+                    yield return token;
+                    token = string.Empty;
+                }
+            }
+            else
+            {
+                token += ch;
+            }
+        }
+
+        if (!string.IsNullOrEmpty(token))
+        {
+            yield return token;
+        }
+    }
+
+    IEnumerator IEnumerable.GetEnumerator()
+    {
+        return GetEnumerator();
+    }
+
+    ~Tokenizer()
+    {
+        Dispose(false);
+    }
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!_disposed)
+        {
+            if (disposing)
+            {
+                // Освобождение управляемых ресурсов
+                _reader?.Dispose();
+            }
+
+            // Освобождение неуправляемых ресурсов (если есть)
+
+            _disposed = true;
+        }
+    }
+}
+
+// Пример использования
+class Program
+{
+    static void Main()
+    {
+        var delimiters = new HashSet<char> { ' ', ',', '.', ';', '!', '?' };
+        using (var tokenizer = new Tokenizer(delimiters, "path/to/your/textfile.txt"))
+        {
+            foreach (var token in tokenizer)
+            {
+                Console.WriteLine(token);
+            }
+        }
+    }
+}*/
+
+/* number 2
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
+
+class Patient
+{
+    public int Id { get; }
+    public bool IsSick { get; }
+
+    public Patient(int id, bool isSick)
+    {
+        Id = id;
+        IsSick = isSick;
+    }
+}
+
+class Doctor
+{
+    public int Id { get; }
+
+    public Doctor(int id)
+    {
+        Id = id;
+    }
+
+    public async Task TreatPatient(Patient patient)
+    {
+        await Task.Delay(new Random().Next(1000, 3000)); // Время лечения от 1 до T
+        await Log($"Doctor {Id} treated patient {patient.Id}. Status: {(patient.IsSick ? "Sick" : "Healthy")}");
+    }
+}
+
+class ExaminationRoom
+{
+    private readonly SemaphoreSlim _capacity;
+    private readonly List<Patient> _patients = new List<Patient>();
+    private readonly ConcurrentQueue<Patient> _queue = new ConcurrentQueue<Patient>();
+    private readonly Doctor[] _doctors;
+
+    public ExaminationRoom(int n, int m)
+    {
+        _capacity = new SemaphoreSlim(n);
+        _doctors = new Doctor[m];
+        for (int i = 0; i < m; i++)
+        {
+            _doctors[i] = new Doctor(i + 1);
+        }
+    }
+
+    public async Task EnterRoom(Patient patient)
+    {
+        if (_capacity.Wait(0)) // Попытка зайти в смотровую
+        {
+            lock (_patients)
+            {
+                _patients.Add(patient);
+            }
+            await Log($"{patient.Id} entered the examination room. Status: {(patient.IsSick ? "Sick" : "Healthy")}");
+            await TreatPatient(patient);
+            _capacity.Release();
+        }
+        else
+        {
+            _queue.Enqueue(patient);
+            await Log($"{patient.Id} is waiting in the queue.");
+            await CheckQueue();
+        }
+    }
+
+    private async Task TreatPatient(Patient patient)
+    {
+        var doctor = GetAvailableDoctor();
+        if (doctor != null)
+        {
+            await doctor.TreatPatient(patient);
+            lock (_patients)
+            {
+                _patients.Remove(patient);
+            }
+        }
+    }
+
+    private Doctor GetAvailableDoctor()
+    {
+        foreach (var doctor in _doctors)
+        {
+            if (true) // Здесь можно добавить логику проверки доступности доктора
+            {
+                return doctor;
+            }
+        }
+        return null;
+    }
+
+    private async Task CheckQueue()
+    {
+        while (_queue.TryDequeue(out var patient))
+        {
+            await EnterRoom(patient);
+        }
+    }
+
+    private static async Task Log(string message)
+    {
+        using (var writer = new StreamWriter("log.txt", true))
+        {
+            await writer.WriteLineAsync($"{DateTime.Now}: {message}");
+        }
+    }
+}
+
+class Program
+{
+    static async Task Main(string[] args)
+    {
+        int N = 3; // Количество мест в смотровой
+        int M = 2; // Количество докторов
+        int T = 3; // Максимальное время лечения
+
+        var examinationRoom = new ExaminationRoom(N, M);
+
+        for (int i = 1; i <= 10; i++)
+        {
+            bool isSick = new Random().Next(0, 2) == 0; // Генерация состояния пациента
+            var patient = new Patient(i, isSick);
+            await examinationRoom.EnterRoom(patient);
+            await Task.Delay(500); // Интервал между приходом пациентов
+        }
+    }
+} */
+
+/*задача 3
+using DataValidator;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace DataValidator
+{
+    // Исключение, если нет правил валидации
+    public class NoValidationRulesException : Exception
+    {
+        public NoValidationRulesException() : base("Не добавлено ни одного правила валидации.") { }
+    }
+
+    // Исключение для индивидуальных ошибок валидации
+    public class ValidationException : Exception
+    {
+        public string RuleName { get; }
+
+        public ValidationException(string ruleName) : base($"Правило '{ruleName}' не пройдено.")
+        {
+            RuleName = ruleName;
+        }
+    }
+
+    // Валидатор
+    public class Validator<T>
+    {
+        private readonly List<Func<T, bool>> _rules = new List<Func<T, bool>>();
+        private readonly List<string> _ruleNames = new List<string>();
+
+        internal void AddRule(Func<T, bool> rule, string ruleName)
+        {
+            _rules.Add(rule);
+            _ruleNames.Add(ruleName);
+        }
+
+        public void Validate(T data)
+        {
+            var exceptions = new List<ValidationException>();
+
+            for (int i = 0; i < _rules.Count; i++)
+            {
+                if (!_rules[i](data))
+                {
+                    exceptions.Add(new ValidationException(_ruleNames[i]));
+                }
+            }
+
+            if (exceptions.Any())
+            {
+                throw new AggregateException("Ошибка валидации.", exceptions);
+            }
+        }
+    }
+
+    // Строитель валидатора
+    public class ValidatorBuilder<T>
+    {
+        private readonly Validator<T> _validator = new Validator<T>();
+
+        public ValidatorBuilder<T> AddRule(Func<T, bool> rule, string ruleName)
+        {
+            _validator.AddRule(rule, ruleName);
+            return this;
+        }
+
+        public Validator<T> Build()
+        {
+            if (_validator == null || !_validator.Rules.Any())
+            {
+                throw new NoValidationRulesException();
+            }
+
+            return _validator;
+        }
+    }
+}
+nomer 4
+using System;
+using DataValidator;
+
+class Program
+{
+    static void Main()
+    {
+        var builder = new ValidatorBuilder<int>();
+
+        // Создаем валидатор с правилами
+        var validator = builder
+            .AddRule(x => x > 0, "Положительное число")
+            .AddRule(x => x < 100, "Меньше 100")
+            .Build();
+
+        // Проверяем на псевдослучайных данных
+        Random rand = new Random();
+
+        for (int i = 0; i < 10; i++)
+        {
+            int number = rand.Next(-50, 150); // Генерация случайных чисел от -50 до 150
+            Console.WriteLine($"Проверяем число: {number}");
+
+            try
+            {
+                validator.Validate(number);
+                Console.WriteLine("Число прошло валидацию.");
+            }
+            catch (AggregateException ex)
+            {
+                Console.WriteLine("Ошибка валидации:");
+                foreach (var inner in ex.InnerExceptions)
+                {
+                    Console.WriteLine($"- {inner.Message}");
+                }
+            }
+        }
+    }
+}
+*/
+
+/*nomer 4
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+
+public class CacheItem<T>
+{
+    public T Value { get; }
+    public DateTime Expiration { get; }
+
+    public CacheItem(T value, TimeSpan timeToLive)
+    {
+        Value = value;
+        Expiration = DateTime.UtcNow.Add(timeToLive);
+    }
+
+    public bool IsExpired() => DateTime.UtcNow > Expiration;
+}
+
+public class Cache<T>
+{
+    private readonly TimeSpan _timeToLive;
+    private readonly uint _maxSize;
+    private readonly ConcurrentDictionary<string, CacheItem<T>> _cache = new ConcurrentDictionary<string, CacheItem<T>>();
+    private readonly ReaderWriterLockSlim _lock = new ReaderWriterLockSlim();
+
+    public Cache(TimeSpan timeToLive, uint maxSize)
+    {
+        _timeToLive = timeToLive;
+        _maxSize = maxSize;
+    }
+
+    public void Save(string key, T value)
+    {
+        if (_cache.ContainsKey(key))
+        {
+            throw new ArgumentException($"Ключ '{key}' уже существует в кэше.");
+        }
+
+        if (_cache.Count >= _maxSize)
+        {
+            RemoveOldest();
+        }
+
+        var cacheItem = new CacheItem<T>(value, _timeToLive);
+        _cache[key] = cacheItem;
+    }
+
+    public T Get(string key)
+    {
+        if (!_cache.TryGetValue(key, out var item) || item.IsExpired())
+        {
+            throw new KeyNotFoundException($"Ключ '{key}' не найден или истек.");
+        }
+
+        return item.Value;
+    }
+
+    private void RemoveOldest()
+    {
+        var oldestKey = _cache.OrderBy(kvp => kvp.Value.Expiration).FirstOrDefault().Key;
+        if (oldestKey != null)
+        {
+            _cache.TryRemove(oldestKey, out _);
+        }
+    }
+}*/
+
+/*using System.Collections.Concurrent;
+
+//nomer 5
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System;
+using System.Threading.Tasks;
+
+public class CacheItem<T>
+{
+    public T Value { get; }
+    public DateTime Expiration { get; }
+
+    public CacheItem(T value, TimeSpan timeToLive)
+    {
+        Value = value;
+        Expiration = DateTime.UtcNow.Add(timeToLive);
+    }
+
+    public bool IsExpired() => DateTime.UtcNow > Expiration;
+}
+
+public class Cache<T>
+{
+    private readonly TimeSpan _timeToLive;
+    private readonly uint _maxSize;
+    private readonly ConcurrentDictionary<string, CacheItem<T>> _cache = new ConcurrentDictionary<string, CacheItem<T>>();
+    private readonly ReaderWriterLockSlim _lock = new ReaderWriterLockSlim();
+
+    public Cache(TimeSpan timeToLive, uint maxSize)
+    {
+        _timeToLive = timeToLive;
+        _maxSize = maxSize;
+    }
+
+    public void Save(string key, T value)
+    {
+        if (_cache.ContainsKey(key))
+        {
+            throw new ArgumentException($"Ключ '{key}' уже существует в кэше.");
+        }
+
+        if (_cache.Count >= _maxSize)
+        {
+            RemoveOldest();
+        }
+
+        var cacheItem = new CacheItem<T>(value, _timeToLive);
+        _cache[key] = cacheItem;
+    }
+
+    public T Get(string key)
+    {
+        if (!_cache.TryGetValue(key, out var item) || item.IsExpired())
+        {
+            throw new KeyNotFoundException($"Ключ '{key}' не найден или истек.");
+        }
+
+        return item.Value;
+    }
+
+    private void RemoveOldest()
+    {
+        var oldestKey = _cache.OrderBy(kvp => kvp.Value.Expiration).FirstOrDefault().Key;
+        if (oldestKey != null)
+        {
+            _cache.TryRemove(oldestKey, out _);
+        }
+    }
+}
+
+class Program
+{
+    static void Main()
+    {
+        var cache = new Cache<string>(TimeSpan.FromSeconds(5), 3);
+
+        // Сохранение данных в кэш
+        try
+        {
+            cache.Save("key1", "value1");
+            cache.Save("key2", "value2");
+            cache.Save("key3", "value3");
+            Console.WriteLine("Записи успешно добавлены в кэш.");
+
+            // Проверка значений
+            Console.WriteLine(cache.Get("key1")); // value1
+            Console.WriteLine(cache.Get("key2")); // value2
+
+            // Добавление еще одной записи, что приведет к удалению самой старой
+            cache.Save("key4", "value4");
+            Console.WriteLine("Запись key4 добавлена. Запись key1 должна быть удалена.");
+
+            // Проверка значений после добавления новой записи
+            try
+            {
+                Console.WriteLine(cache.Get("key1")); // Должно вызвать исключение
+            }
+            catch (KeyNotFoundException ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+
+            // Ожидание истечения времени жизни для проверки
+            Console.WriteLine("Ожидание истечения времени жизни для key2 и key3...");
+            Task.Delay(6000).Wait(); // Ждем 6 секунд
+
+            try
+            {
+                Console.WriteLine(cache.Get("key2")); // Должно вызвать исключение
+            }
+            catch (KeyNotFoundException ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+        }
+        catch (ArgumentException ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+    }
+}*/
+
+
+
+
+
+//nomer 6
+
+using System;
+using System;
+using System.Diagnostics;
+using System.Threading.Tasks;
+using System;
+using System.Diagnostics;
+using System.IO;
+using System.Threading.Tasks;
+using System.Runtime.CompilerServices;
+
+public class Matrix
+{
+    public int Rows { get; }
+    public int Columns { get; }
+    private double[,] _data;
+
+    public Matrix(int rows, int columns)
+    {
+        Rows = rows;
+        Columns = columns;
+        _data = new double[rows, columns];
+    }
+
+    public double this[int row, int col]
+    {
+        get => _data[row, col];
+        set => _data[row, col] = value;
+    }
+
+    public static Matrix FromFile(string filePath)
+    {
+        // Реализуйте чтение матрицы из файла
+        throw new NotImplementedException();
+    }
+
+    public void ToFile(string filePath)
+    {
+        // Реализуйте запись матрицы в файл
+        throw new NotImplementedException();
+    }
+}
+public class MatrixMultiplier
+{
+    public static async Task<Matrix> MultiplyAsync(Matrix a, Matrix b)
+    {
+        if (a.Columns != b.Rows)
+            throw new ArgumentException("Неверные размеры матриц для умножения.");
+
+        var result = new Matrix(a.Rows, b.Columns);
+
+        var tasks = new Task[a.Rows];
+
+        for (int i = 0; i < a.Rows; i++)
+        {
+            int row = i; // Локальная переменная для захвата в лямбде
+            tasks[i] = Task.Run(() =>
+            {
+                for (int j = 0; j < b.Columns; j++)
+                {
+                    double sum = 0;
+                    for (int k = 0; k < a.Columns; k++)
+                    {
+                        sum += a[row, k] * b[k, j];
+                    }
+                    result[row, j] = sum;
+                }
+            });
+        }
+
+        await Task.WhenAll(tasks);
+        return result;
+    }
+}
+class Program
+{
+    static async Task Main(string[] args)
+    {
+        string inputFileA = "matrixA.txt"; // Путь к файлу с первой матрицей
+        string inputFileB = "matrixB.txt"; // Путь к файлу со второй матрицей
+        string outputFile = "result.txt"; // Путь к файлу для результата
+
+        try
+        {
+            var matrixA = Matrix.FromFile(inputFileA);
+            var matrixB = Matrix.FromFile(inputFileB);
+
+            var stopwatch = Stopwatch.StartNew();
+            var resultMatrix = await MatrixMultiplier.MultiplyAsync(matrixA, matrixB);
+            stopwatch.Stop();
+
+            Console.WriteLine($"Умножение завершено за {stopwatch.ElapsedMilliseconds} мс.");
+            await Task.Run(() => resultMatrix.ToFile(outputFile));
+            Console.WriteLine("Результат записан в файл.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Произошла ошибка: {ex.Message}");
+        }
+    }
+}
+
